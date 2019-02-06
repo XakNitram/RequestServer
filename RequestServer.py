@@ -17,8 +17,8 @@ def is_substring(test: str, case: str, offset: int=0) -> bool:
 
 
 class RequestShell(cmd.Cmd):
-    prompt = ">>> "
-    break_char = r"\n"
+    prompt = ">>> "     # prompt used by the interpreter. Using IDLE's prompt for fun.
+    break_char = r"\n"  # used later with regex to handle newlines
 
     def __init__(self, file="rqdatabase.db"):
         super().__init__()
@@ -38,6 +38,9 @@ class RequestShell(cmd.Cmd):
         self.commit_sql: Callable[[], None] = self.connection.commit
 
         # ****** Request Table Creation ******
+        """Perhaps this can be used in the future to create project
+        type objects that themselves store requests. This table would
+        then store the references to the project tables."""
         self.post_sql("""
         CREATE TABLE IF NOT EXISTS requests
         (
