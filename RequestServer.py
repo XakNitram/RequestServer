@@ -63,7 +63,7 @@ class RequestShell(cmd.Cmd):
         pass
 
     def do_new(self, arg):
-        """Submit a new request. The only argument is the name of the request."""
+        """Submit a new request. Usage: new <requesst_name|fragment>"""
         if len(arg) < 1:
             print("Enter a short, descriptive name for the new request:")
             name = input(self.prompt).lower()
@@ -80,7 +80,7 @@ class RequestShell(cmd.Cmd):
         print("Request added to database.")
 
     def do_edit(self, arg):
-        """Edit an aspect of the given request."""
+        """Edit an aspect of the given request. Usage: edit <request_name|fragment>"""
         req = self.search_for_request(arg)
         if len(req) > 0:
             print("Enter the number of the part of the request you wish to edit:")
@@ -203,7 +203,7 @@ class RequestShell(cmd.Cmd):
         return self.break_char.join(text)
 
     def do_expand(self, arg):
-        """Show request information."""
+        """Show request information. Usage: expand <request_name|fragment>"""
         req = self.search_for_request(arg)
         if len(req) > 0:
             self.show_request(req)
@@ -211,7 +211,7 @@ class RequestShell(cmd.Cmd):
             print("No request found by that name.")
 
     def do_complete(self, arg):
-        """Mark the given request as completed."""
+        """Mark the given request as completed. Usage: complete <request_name|fragment>"""
         req = self.search_for_request(arg)
         if len(req) > 0:
             print("This will mark the following request as completed:")
@@ -226,7 +226,7 @@ class RequestShell(cmd.Cmd):
             print("No request found by that name.")
 
     def do_delete(self, arg):
-        """Delete the given request."""
+        """Delete the given request. Usage: delete <request_name|fragment>"""
         req = self.search_for_request(arg)
         if len(req) > 0:
             print("This will delete the following request:")
@@ -240,13 +240,13 @@ class RequestShell(cmd.Cmd):
             print("No request found by that name.")
 
     def do_show(self, arg):
-        """Show all current requests."""
+        """Show all current requests. Usage: show"""
         print("CURRENT FEATURES REQUESTS:")
         show_all_names()
         print()
 
     def do_quit(self, arg):
-        """Quit the interpreter with code <arg>."""
+        """Quit the interpreter with code <arg>. Usage: quit <code>"""
         # self.close()
         try:
             quit(int(arg))
@@ -254,7 +254,7 @@ class RequestShell(cmd.Cmd):
             quit(0)
 
     def do_exit(self, arg):
-        """Exit the interpreter with code <arg>"""
+        """Exit the interpreter with code <arg>. Usage: exit <code>"""
         self.do_quit(arg)
 
     def close(self):
