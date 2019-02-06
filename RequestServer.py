@@ -114,11 +114,15 @@ class RequestShell(cmd.Cmd):
             except (ValueError, AssertionError):
                 continue
 
+        # confirm that the user wants to edit the selected feature.
         if not self.ask_yes_no():
             return False
 
         if not choice:
+            # grab the name and convert it to a useable form
             new_name = input(f"[{req.title()}] {self.prompt}").lower()
+
+            # commit the new name to the database.
             self.post_sql("""
             UPDATE requests SET name=? WHERE name=? AND completed=0
             """, (new_name, req))
@@ -128,14 +132,19 @@ class RequestShell(cmd.Cmd):
             return False
 
         else:
-            # get request information
+            # get request information from database
             self.post_sql("""
             SELECT description FROM requests WHERE name=? AND completed=0
             """, (req, ))
             treq = self.cursor.fetchone()
+
+            # use regex to break down the previous description into a useable form.
             desc_parts = tuple(split(escape(self.break_char), treq[0]))
+
+            # enter the text editor with the previous description loaded.
             new_desc = self.enter_text(desc_parts)
 
+            # commit the new description to the database.
             self.post_sql("""
             UPDATE requests SET description=? WHERE name=? AND completed=0
             """, (new_desc, req))
@@ -152,15 +161,25 @@ class RequestShell(cmd.Cmd):
 
         # get a list of all names from the database
         self.post_sql("SELECT name FROM requests WHERE completed=0")
+
+        # iterate over the list and find all matches.
         returns: List[str] = []
         for row in self.cursor.fetchall():
             req = search_reg.search(row[0])
             if req is not None:
                 returns.append(row[0])
 
+        # simpler implementation using list comprehension.
+        # returns = [
+        #     row[0] for row in self.cursor.fetchall()
+        #     if search_reg.search(row[0]) is not None
+        # ]
+
+        # return empty string if no matches are found.
         if len(returns) < 1:
             return ""
 
+        # ask the user for further input if more than one request is found
         elif len(returns) > 1:
             print("Possible requests:")
             for index, item in enumerate(returns):
@@ -178,12 +197,20 @@ class RequestShell(cmd.Cmd):
                 except IndexError:
                     continue
 
+        # otherwise, return the only result
         else:
             return returns[0]
 
     def show_request(self, name):
+        # name should always be the exact request name
+        # since no user can access this method directly
         name = name.lower()
+
+        # get request information from database
         self.post_sql("SELECT * FROM requests WHERE name=? AND completed=0", (name,))
+
+        # iterate over returned list and display the
+        # information for all found requests.
         for row in self.cursor.fetchall():
             print(
                 str(row[1]).title(), "-",
@@ -191,9 +218,11 @@ class RequestShell(cmd.Cmd):
                     "Requested on %m/%d/%Y at %I:%M%p"
                 )
             )
+            # use regex to print the description exactly how the user entered it.
             print("\n".join(split(escape(self.break_char), row[2])), "\n")
 
     def show_all_names(self):
+        # get list of all names from database
         self.post_sql("SELECT name FROM requests WHERE completed=0")
 
         print("CURRENT FEATURES REQUESTS:")
@@ -225,19 +254,37 @@ class RequestShell(cmd.Cmd):
         text: List[str] = []
         while True:
             if (index + 1) > len(prev_text):
+                # there is no previous text to display
                 prompt = self.prompt
             else:
+                # there is previous text to display.
+                # display it in the format [<prev_text>] <prompt>
                 prompt = f"[{prev_text[index]}]{self.prompt}"
 
             x = input(prompt)
+
+            # search for system tags
             if x[-3:] == "EOD":
                 if x[:-3] != "":
                     text.append(x[:-3])
                 break
             if fullmatch(r"\s*<<\s*", x) is not None:
                 x = prev_text[index]
+
+            # add the text to the description.
             text.append(x)
             index += 1
+
+        """The text is in the form of a list at the 
+        end of this function. The value needs to
+        be converted to a string type.
+        
+        This is done using python's str.join method.
+        
+        "\n".join(["We.", "Are.", "Free!"])
+        will return "We.\nAre.\nFree!". 
+        
+        <break_char: str>.join(<text: List[str]>)"""
         return self.break_char.join(text)
 
     def do_expand(self, arg):
@@ -290,6 +337,7 @@ class RequestShell(cmd.Cmd):
         self.do_quit(arg)
 
     def close(self):
+        # close the connection to the database
         self.cursor.close()
         self.connection.close()
 
