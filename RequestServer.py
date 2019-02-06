@@ -3,7 +3,7 @@ from sqlite3 import connect, Connection, Cursor
 from datetime import datetime
 from time import time
 from typing import Callable, Tuple, List
-from re import split, escape, match
+from re import split, escape, fullmatch
 from re import compile as regex_compile
 
 
@@ -228,12 +228,13 @@ class RequestShell(cmd.Cmd):
                 prompt = self.prompt
             else:
                 prompt = f"[{prev_text[index]}]{self.prompt}"
+
             x = input(prompt)
             if x[-3:] == "EOD":
                 if x[:-3] != "":
                     text.append(x[:-3])
                 break
-            if match(r"\s*<<\s*", x) is not None:
+            if fullmatch(r"\s*<<\s*", x) is not None:
                 x = prev_text[index]
             text.append(x)
             index += 1
