@@ -3,7 +3,7 @@ from sqlite3 import connect, Connection, Cursor
 from datetime import datetime
 from time import time
 from typing import Callable, Tuple, List
-from re import split, escape
+from re import split, escape, match
 from re import compile as regex_compile
 
 
@@ -144,9 +144,13 @@ class RequestShell(cmd.Cmd):
             print("Request description updated.")
             return False
 
-    def search_for_request(self, unfin: str) -> str:
+    def search_for_request(self, fragment: str) -> str:
         """Return a completed request name."""
-        search_reg = regex_compile(escape(unfin.lower()))
+
+        # convert the fragment to a useable form.
+        search_reg = regex_compile(escape(fragment.lower()))
+
+        # get a list of all names from the database
         self.post_sql("SELECT name FROM requests WHERE completed=0")
         returns: List[str] = []
         for row in self.cursor.fetchall():
@@ -229,7 +233,7 @@ class RequestShell(cmd.Cmd):
                 if x[:-3] != "":
                     text.append(x[:-3])
                 break
-            if x == "<<":
+            if match(r"\s*<<\s*", x) is not None:
                 x = prev_text[index]
             text.append(x)
             index += 1
