@@ -66,19 +66,26 @@ class RequestShell(cmd.Cmd):
 
     def do_new(self, arg):
         """Submit a new request. Usage: new <requesst_name|fragment>"""
+        # If the user does not enter a name with the command, prompt them for one.
         if len(arg) < 1:
             print("Enter a short, descriptive name for the new request:")
             name = input(self.prompt).lower()
         else:
             name = arg.lower()
+
         print("Enter a description for the request.", end=" ")
+
+        # ****** Enter Text Editor ******
         desc = self.enter_text()
+
+        # ****** Commit Request to Database ******
         unix = time()
         self.post_sql("""
         INSERT INTO requests (unix, name, description, completed)
         VALUES (?, ?, ?, 0)
         """, (unix, name, desc))
         self.commit_sql()
+
         print("Request added to database.")
 
     def do_edit(self, arg):
@@ -95,6 +102,7 @@ class RequestShell(cmd.Cmd):
             print("No request found by that name.")
             return False
 
+        # ****** Edit Choice ******
         print("Enter the number of the part of the request you wish to edit:")
         print(" 1) Name")
         print(" 2) Description")
@@ -120,6 +128,7 @@ class RequestShell(cmd.Cmd):
             return False
 
         else:
+            # get request information
             self.post_sql("""
             SELECT description FROM requests WHERE name=? AND completed=0
             """, (req, ))
