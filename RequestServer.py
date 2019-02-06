@@ -97,7 +97,7 @@ class RequestShell(cmd.Cmd):
             return False
 
         # Search database for requests containing the substring arg
-        req = self.search_for_request(arg)
+        req: str = self.search_for_request(arg)
         if len(req) == 0:
             print("No request found by that name.")
             return False
@@ -120,7 +120,7 @@ class RequestShell(cmd.Cmd):
 
         if not choice:
             # grab the name and convert it to a useable form
-            new_name = input(f"[{req.title()}] {self.prompt}").lower()
+            new_name: str = input(f"[{req.title()}] {self.prompt}").lower()
 
             # commit the new name to the database.
             self.post_sql("""
@@ -136,13 +136,13 @@ class RequestShell(cmd.Cmd):
             self.post_sql("""
             SELECT description FROM requests WHERE name=? AND completed=0
             """, (req, ))
-            treq = self.cursor.fetchone()
+            treq: Tuple[str] = self.cursor.fetchone()
 
             # use regex to break down the previous description into a useable form.
-            desc_parts = tuple(split(escape(self.break_char), treq[0]))
+            desc_parts: Tuple[str, ...] = tuple(split(escape(self.break_char), treq[0]))
 
             # enter the text editor with the previous description loaded.
-            new_desc = self.enter_text(desc_parts)
+            new_desc: str = self.enter_text(desc_parts)
 
             # commit the new description to the database.
             self.post_sql("""
