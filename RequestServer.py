@@ -7,12 +7,6 @@ from re import split, escape
 from re import compile as regex_compile
 
 
-connection: Connection = connect("rqdatabase.db")
-cursor: Cursor = connection.cursor()
-dosql: Callable[[str, Tuple], None] = cursor.execute
-commit: Callable[[], None] = connection.commit
-
-
 def is_substring(test: str, case: str, offset: int=0) -> bool:
     return test in tuple(
         case[0:offset + 1 + i]
@@ -22,26 +16,29 @@ def is_substring(test: str, case: str, offset: int=0) -> bool:
     )
 
 
-def show_all_names():
-    dosql("SELECT name FROM requests WHERE completed=0")
-    names_displayed = 0
-    for name in cursor.fetchall():
-        names_displayed += 1
-        print("  >", str(name[0]).title())
-
-    if names_displayed < 1:
-        print("  > No current feature requests.")
-
-
 class RequestShell(cmd.Cmd):
     prompt = ">>> "
     break_char = r"\n"
 
-    def __init__(self):
+    def __init__(self, file="rqdatabase.db"):
         super().__init__()
 
-        # create the requests table
-        dosql("""
+        # ****** Argument Attributes ******
+        self._file = file
+
+        # ****** Connection Information ******
+        self.connection: Connection = connect(file)
+        """SQLite operates in system memory rather than on a server.
+        Therefore, instead of connecting to a server, we connect to
+        the file that the database will be stored in."""
+        self.cursor: Cursor = self.connection.cursor()
+
+        # ****** Method Shorthands ******
+        self.post_sql: Callable[[str, Tuple], None] = self.cursor.execute
+        self.commit_sql: Callable[[], None] = self.connection.commit
+
+        # ****** Request Table Creation ******
+        self.post_sql("""
         CREATE TABLE IF NOT EXISTS requests
         (
           unix INTEGER,
@@ -51,9 +48,14 @@ class RequestShell(cmd.Cmd):
         )
         """)
 
+    @property
+    def file(self):
+        """The file attribute should only be accessed, not changed."""
+        return self._file
+
     def preloop(self):
         print("CURRENT FEATURE REQUESTS:")
-        show_all_names()
+        self.show_all_names()
         print()
 
     # def postloop(self):
@@ -72,11 +74,11 @@ class RequestShell(cmd.Cmd):
         print("Enter a description for the request.", end=" ")
         desc = self.enter_text()
         unix = time()
-        dosql("""
+        self.post_sql("""
         INSERT INTO requests (unix, name, description, completed)
         VALUES (?, ?, ?, 0)
         """, (unix, name, desc))
-        commit()
+        self.commit_sql()
         print("Request added to database.")
 
     def do_edit(self, arg):
@@ -99,25 +101,25 @@ class RequestShell(cmd.Cmd):
 
             if choice == 1:
                 new_name = input(f"[{req.title()}] {self.prompt}").lower()
-                dosql("""
+                self.post_sql("""
                 UPDATE requests SET name=? WHERE name=? AND completed=0
                 """, (new_name, req))
-                commit()
+                self.commit_sql()
 
                 print("Request name updated.")
 
             elif choice == 2:
-                dosql("""
+                self.post_sql("""
                 SELECT description FROM requests WHERE name=? AND completed=0
                 """, (req, ))
-                treq = cursor.fetchone()
+                treq = self.cursor.fetchone()
                 desc_parts = tuple(split(escape(self.break_char), treq[0]))
                 new_desc = self.enter_text(desc_parts)
 
-                dosql("""
+                self.post_sql("""
                 UPDATE requests SET description=? WHERE name=? AND completed=0
                 """, (new_desc, req))
-                commit()
+                self.commit_sql()
 
                 print("Request description updated.")
         else:
@@ -126,9 +128,9 @@ class RequestShell(cmd.Cmd):
     def search_for_request(self, unfin: str) -> str:
         """Return a completed request name."""
         search_reg = regex_compile(escape(unfin.lower()))
-        dosql("SELECT name FROM requests WHERE completed=0")
+        self.post_sql("SELECT name FROM requests WHERE completed=0")
         returns: List[str] = []
-        for row in cursor.fetchall():
+        for row in self.cursor.fetchall():
             req = search_reg.search(row[0])
             if req is not None:
                 returns.append(row[0])
@@ -158,8 +160,8 @@ class RequestShell(cmd.Cmd):
 
     def show_request(self, name):
         name = name.lower()
-        dosql("SELECT * FROM requests WHERE name=? AND completed=0", (name,))
-        for row in cursor.fetchall():
+        self.post_sql("SELECT * FROM requests WHERE name=? AND completed=0", (name,))
+        for row in self.cursor.fetchall():
             print(
                 str(row[1]).title(), "-",
                 datetime.fromtimestamp(row[0]).strftime(
@@ -167,6 +169,16 @@ class RequestShell(cmd.Cmd):
                 )
             )
             print("\n".join(split(escape(self.break_char), row[2])), "\n")
+
+    def show_all_names(self):
+        self.post_sql("SELECT name FROM requests WHERE completed=0")
+        names_displayed = 0
+        for name in self.cursor.fetchall():
+            names_displayed += 1
+            print("  >", str(name[0]).title())
+
+        if names_displayed < 1:
+            print("  > No current feature requests.")
 
     def ask_yes_no(self) -> bool:
         print("Are you sure you want to continue? (y/n)")
@@ -218,10 +230,10 @@ class RequestShell(cmd.Cmd):
             print("  >", req.title())
             if not self.ask_yes_no():
                 return
-            dosql("""
+            self.post_sql("""
             UPDATE requests SET completed=1 WHERE name=? AND completed=0
             """, (req,))
-            commit()
+            self.commit_sql()
         else:
             print("No request found by that name.")
 
@@ -233,7 +245,7 @@ class RequestShell(cmd.Cmd):
             print("  >", req.title())
             if not self.ask_yes_no():
                 return
-            dosql("""
+            self.post_sql("""
             DELETE FROM requests WHERE name=?
             """, (req, ))
         else:
@@ -242,24 +254,21 @@ class RequestShell(cmd.Cmd):
     def do_show(self, arg):
         """Show all current requests. Usage: show"""
         print("CURRENT FEATURES REQUESTS:")
-        show_all_names()
+        self.show_all_names()
         print()
 
     def do_quit(self, arg):
         """Quit the interpreter with code <arg>. Usage: quit <code>"""
-        # self.close()
-        try:
-            quit(int(arg))
-        except ValueError:
-            quit(0)
+        self.close()
+        return True
 
     def do_exit(self, arg):
         """Exit the interpreter with code <arg>. Usage: exit <code>"""
         self.do_quit(arg)
 
     def close(self):
-        cursor.close()
-        connection.close()
+        self.cursor.close()
+        self.connection.close()
 
 
 if __name__ == '__main__':
