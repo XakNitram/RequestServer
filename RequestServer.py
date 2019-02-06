@@ -83,47 +83,57 @@ class RequestShell(cmd.Cmd):
 
     def do_edit(self, arg):
         """Edit an aspect of the given request. Usage: edit <request_name|fragment>"""
+        # Ensure user enters something
+        if len(arg) < 1:
+            print("Usage: edit <request_name|fragment>")
+            self.show_all_names()
+            return False
+
+        # Search database for requests containing the substring arg
         req = self.search_for_request(arg)
-        if len(req) > 0:
-            print("Enter the number of the part of the request you wish to edit:")
-            print(" 1) Name")
-            print(" 2) Description")
-            while True:
-                try:
-                    choice = int(input(self.prompt))
-                    assert choice in (1, 2)
-                    break
-                except (ValueError, AssertionError):
-                    continue
-
-            if not self.ask_yes_no():
-                return
-
-            if choice == 1:
-                new_name = input(f"[{req.title()}] {self.prompt}").lower()
-                self.post_sql("""
-                UPDATE requests SET name=? WHERE name=? AND completed=0
-                """, (new_name, req))
-                self.commit_sql()
-
-                print("Request name updated.")
-
-            elif choice == 2:
-                self.post_sql("""
-                SELECT description FROM requests WHERE name=? AND completed=0
-                """, (req, ))
-                treq = self.cursor.fetchone()
-                desc_parts = tuple(split(escape(self.break_char), treq[0]))
-                new_desc = self.enter_text(desc_parts)
-
-                self.post_sql("""
-                UPDATE requests SET description=? WHERE name=? AND completed=0
-                """, (new_desc, req))
-                self.commit_sql()
-
-                print("Request description updated.")
-        else:
+        if len(req) == 0:
             print("No request found by that name.")
+            return False
+
+        print("Enter the number of the part of the request you wish to edit:")
+        print(" 1) Name")
+        print(" 2) Description")
+        while True:
+            try:
+                choice = int(input(self.prompt)) - 1
+                assert choice in (0, 1)
+                break
+            except (ValueError, AssertionError):
+                continue
+
+        if not self.ask_yes_no():
+            return False
+
+        if not choice:
+            new_name = input(f"[{req.title()}] {self.prompt}").lower()
+            self.post_sql("""
+            UPDATE requests SET name=? WHERE name=? AND completed=0
+            """, (new_name, req))
+            self.commit_sql()
+
+            print("Request name updated.")
+            return False
+
+        else:
+            self.post_sql("""
+            SELECT description FROM requests WHERE name=? AND completed=0
+            """, (req, ))
+            treq = self.cursor.fetchone()
+            desc_parts = tuple(split(escape(self.break_char), treq[0]))
+            new_desc = self.enter_text(desc_parts)
+
+            self.post_sql("""
+            UPDATE requests SET description=? WHERE name=? AND completed=0
+            """, (new_desc, req))
+            self.commit_sql()
+
+            print("Request description updated.")
+            return False
 
     def search_for_request(self, unfin: str) -> str:
         """Return a completed request name."""
@@ -172,13 +182,15 @@ class RequestShell(cmd.Cmd):
 
     def show_all_names(self):
         self.post_sql("SELECT name FROM requests WHERE completed=0")
+
+        print("CURRENT FEATURES REQUESTS:")
         names_displayed = 0
         for name in self.cursor.fetchall():
             names_displayed += 1
             print("  >", str(name[0]).title())
 
         if names_displayed < 1:
-            print("  > No current feature requests.")
+            print("  > No current feature requests.\n")
 
     def ask_yes_no(self) -> bool:
         print("Are you sure you want to continue? (y/n)")
@@ -253,9 +265,7 @@ class RequestShell(cmd.Cmd):
 
     def do_show(self, arg):
         """Show all current requests. Usage: show"""
-        print("CURRENT FEATURES REQUESTS:")
         self.show_all_names()
-        print()
 
     def do_quit(self, arg):
         """Quit the interpreter with code <arg>. Usage: quit <code>"""
