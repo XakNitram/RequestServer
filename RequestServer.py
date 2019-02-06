@@ -58,8 +58,8 @@ class RequestShell(cmd.Cmd):
         self.show_all_names()
         print()
 
-    # def postloop(self):
-    #     self.close()
+    def postloop(self):
+        self.close()
 
     def emptyline(self):
         pass
@@ -259,7 +259,6 @@ class RequestShell(cmd.Cmd):
 
     def do_quit(self, arg):
         """Quit the interpreter with code <arg>. Usage: quit <code>"""
-        self.close()
         return True
 
     def do_exit(self, arg):
